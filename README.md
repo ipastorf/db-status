@@ -3,6 +3,7 @@
 Bash script for Oracle RAC environments that provides a consolidated, color-coded view of all Oracle Databases registered in the Cluster Registry (CRS) — including NON-CDB, CDB and PDB status — from a single command.
 
 ## Sample output
+<img width="1371" height="665" alt="2026-04-06 15_55_23-SuperPuTTY - racdb01" src="https://github.com/user-attachments/assets/909ec707-d5a6-4012-80a9-48e95e8f5325" />
 
 ```
 db-status for Oracle Database: Release 1.45 on 06-APR-2026 10:00:00
