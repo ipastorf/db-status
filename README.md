@@ -1,6 +1,6 @@
 # db-status.sh
 
-Bash monitoring script for Oracle RAC environments that provides a consolidated, color-coded view of all databases registered in the Cluster Registry (CRS) — including NON-CDB, CDB and PDB status — from a single command.
+Bash script for Oracle RAC environments that provides a consolidated, color-coded view of all Oracle Databases registered in the Cluster Registry (CRS) — including NON-CDB, CDB and PDB status — from a single command.
 
 ## Features
 
