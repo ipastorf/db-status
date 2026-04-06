@@ -2,6 +2,46 @@
 
 Bash script for Oracle RAC environments that provides a consolidated, color-coded view of all Oracle Databases registered in the Cluster Registry (CRS) — including NON-CDB, CDB and PDB status — from a single command.
 
+## Sample output
+
+```
+db-status for Oracle Database: Release 1.45 on 06-APR-2026 10:00:00
+
+===========================================================================
+CRS info
+===========================================================================
+GRID_HOME         : /u01/app/19.0.0/grid
+GRID_VERSION      : 19.21.0.0.0
+CLUSTER_NAME      : mycluster ( upgrade state is NORMAL )
+SCAN_NAME         : mycluster-scan
+CLUSTER_NODES     : node1,node2
+HOST_RESOURCES    : node1 [MEM  128GB (hugepages  64GB)] [CPUs  32 (Intel Xeon ...)]
+HOST_USAGE        : node1 [MEM%  42.3% (hugepages  68.5%)] [CPU%  12.4%]
+
+===========================================================================
+Databases status
+===========================================================================
+FILTER_ACTIVE     : -d CDB01*  (showing databases/PDBs matching 'CDB01*')
+
+DB_UNIQUE_NAME    : CDB01                   ORACLE_HOME  : /u01/app/oracle/product/19.0.0/db
+DB-ROLE (DB-TYPE) : PRIMARY (CDB)           VERSION      : 19.21.0.0.0
++--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
+| DB                 | SIZE             | SGA_MAX_SIZE | CPU_COUNT | node1                   | node2                   |
++--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
+| CDB01              | [       271 GB ] | 128 GB       | 8         | CDB011(open)            | CDB012(open)            |
+| └ PDB$SEED         |    └        0 GB | -            | -         |   READ ONLY             |   READ ONLY             |
+| └ PDBAPP           |    └      130 GB | 64 GB        | 4         |   READ WRITE            |   READ WRITE            |
+| └ PDBDWH           |    └      141 GB | 64 GB        | 4         |   READ WRITE            |   READ WRITE            |
++--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
+
+Totals (CDBs:1  PDBs:3  Size:271 GB)
+
+===========================================================================
+Finished on 06-APR-2026 10:00:05 - elapsed 5s
+===========================================================================
+```
+
+
 ## Features
 
 - Displays CRS cluster info: Grid version, cluster name, upgrade state, SCAN name, cluster nodes
@@ -85,45 +125,6 @@ Host resource usage thresholds:
 | 0 – 75% | Green |
 | 76 – 95% | Yellow |
 | > 95% | Red |
-
-## Sample output
-
-```
-db-status for Oracle Database: Release 1.45 on 06-APR-2026 10:00:00
-
-===========================================================================
-CRS info
-===========================================================================
-GRID_HOME         : /u01/app/19.0.0/grid
-GRID_VERSION      : 19.21.0.0.0
-CLUSTER_NAME      : mycluster ( upgrade state is NORMAL )
-SCAN_NAME         : mycluster-scan
-CLUSTER_NODES     : node1,node2
-HOST_RESOURCES    : node1 [MEM  128GB (hugepages  64GB)] [CPUs  32 (Intel Xeon ...)]
-HOST_USAGE        : node1 [MEM%  42.3% (hugepages  68.5%)] [CPU%  12.4%]
-
-===========================================================================
-Databases status
-===========================================================================
-FILTER_ACTIVE     : -d CDB01*  (showing databases/PDBs matching 'CDB01*')
-
-DB_UNIQUE_NAME    : CDB01                   ORACLE_HOME  : /u01/app/oracle/product/19.0.0/db
-DB-ROLE (DB-TYPE) : PRIMARY (CDB)           VERSION      : 19.21.0.0.0
-+--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
-| DB                 | SIZE             | SGA_MAX_SIZE | CPU_COUNT | node1                   | node2                   |
-+--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
-| CDB01              | [       271 GB ] | 128 GB       | 8         | CDB011(open)            | CDB012(open)            |
-| └ PDB$SEED         |    └        0 GB | -            | -         |   READ ONLY             |   READ ONLY             |
-| └ PDBAPP           |    └      130 GB | 64 GB        | 4         |   READ WRITE            |   READ WRITE            |
-| └ PDBDWH           |    └      141 GB | 64 GB        | 4         |   READ WRITE            |   READ WRITE            |
-+--------------------+------------------+--------------+-----------+-------------------------+-------------------------+
-
-Totals (CDBs:1  PDBs:3  Size:271 GB)
-
-===========================================================================
-Finished on 06-APR-2026 10:00:05 - elapsed 5s
-===========================================================================
-```
 
 ## Compatibility
 
