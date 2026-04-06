@@ -45,12 +45,6 @@ Bash script for Oracle RAC environments that provides a consolidated, color-code
 | PDB name match | Shows the full parent CDB block with all its PDBs; matched PDB highlighted in green |
 | Wildcard match | Shows all matching databases and/or PDBs across the cluster |
 
-> **Note:** Always quote wildcard patterns to prevent shell glob expansion:
-> ```bash
-> ./db-status.sh -d 'CDB*'    # correct
-> ./db-status.sh -d CDB*      # wrong — shell expands * to filenames
-> ```
-
 ## Examples
 
 ```bash
@@ -67,13 +61,13 @@ Bash script for Oracle RAC environments that provides a consolidated, color-code
 ./db-status.sh -d PDBFIN
 
 # Show all databases/PDBs whose name starts with PRO
-./db-status.sh -d 'PRO*'
+./db-status.sh -d PRO*
 
 # Show all databases/PDBs whose name ends with PRD
-./db-status.sh -d '*PRD'
+./db-status.sh -d *PRD
 
 # Combine filter and suppress CRS header
-./db-status.sh -c false -d 'CDB*'
+./db-status.sh -c false -d CDB*
 ```
 
 ## Output colour coding
