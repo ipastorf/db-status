@@ -9,10 +9,10 @@
 # License:      MIT License                                                           #
 # Copyright (C) - Ignacio Pastor Fernandez."                                          #
 #######################################################################################
-version="1.45"
+version="1.46"
 
 # Output table columns width variables (user-modifiable)
-col_width_db="35"          # Column width for DB
+col_width_db="30"          # Column width for DB
 col_width_size="18"        # Column width for SIZE
 col_width_sga="14"         # Column width for SGA_MAX_SIZE
 col_width_cpucount="11"    # Column width for CPU_COUNT
@@ -296,24 +296,33 @@ else
             if [ -n "${filter_db}" ] && [[ "$(echo "${db_unique_name}" | tr '[:lower:]' '[:upper:]')" != ${filter_db} ]]; then
                 # Fast local instance check (queries local CRS agent only, not all nodes)
                 inst_line=$(${ORACLE_HOME}/bin/srvctl status instance -d "${db_unique_name}" -n "${current_dbnode}" 2>/dev/null)
-                if ! echo "${inst_line}" | grep -q " is running"; then
-                    continue   # local instance is not running — nothing to display, skip
+                # Skip ONLY if the instance is definitively stopped.
+                # If inst_line is empty (Oracle Restart, unsupported flag, or unexpected format)
+                # we fall through to the main loop — never skip on ambiguous output.
+                if echo "${inst_line}" | grep -q " is not running"; then
+                    continue   # local instance is definitively stopped — nothing to display, skip
                 fi
-                # Local instance is running. Extract ORACLE_SID from the status line.
-                ORACLE_SID=$(echo "${inst_line}" | awk '{print $2}')
-                # Single sqlplus call: check db_name AND matching PDB count together.
-                # Oracle 11g has no v$pdbs — always NON-CDB, PDB count is always 0.
-                filter_db_sql="${filter_db//\*/\%}"
-                if [ "${db_ver_major}" -ge 12 ]; then
-                    pre_check=$(echo -e "set head off feed off pages 0 trimout on;\nselect upper(trim(NAME))||'|'||(select count(*) from v\$pdbs where upper(name) like '${filter_db_sql}') from v\$database;" | ${ORACLE_HOME}/bin/sqlplus -s / as sysdba 2>/dev/null | tr -d ' \n')
-                else
-                    pre_check=$(echo -e "set head off feed off pages 0 trimout on;\nselect upper(trim(NAME))||'|0' from v\$database;" | ${ORACLE_HOME}/bin/sqlplus -s / as sysdba 2>/dev/null | tr -d ' \n')
+                # If instance is confirmed running, extract SID and run sqlplus pre-check.
+                if echo "${inst_line}" | grep -q " is running"; then
+                    # Local instance is running. Extract ORACLE_SID from the status line.
+                    ORACLE_SID=$(echo "${inst_line}" | awk '{print $2}')
+                    # Single sqlplus call: check db_name AND matching PDB count together.
+                    # Oracle 11g has no v$pdbs — always NON-CDB, PDB count is always 0.
+                    filter_db_sql="${filter_db//\*/\%}"
+                    if [ "${db_ver_major}" -ge 12 ]; then
+                        pre_check=$(echo -e "set head off feed off pages 0 trimout on;\nselect upper(trim(NAME))||'|'||(select count(*) from v\$pdbs where upper(name) like '${filter_db_sql}') from v\$database;" | ${ORACLE_HOME}/bin/sqlplus -s / as sysdba 2>/dev/null | tr -d ' \n')
+                    else
+                        pre_check=$(echo -e "set head off feed off pages 0 trimout on;\nselect upper(trim(NAME))||'|0' from v\$database;" | ${ORACLE_HOME}/bin/sqlplus -s / as sysdba 2>/dev/null | tr -d ' \n')
+                    fi
+                    db_name_precheck=$(echo "${pre_check}" | cut -d'|' -f1)
+                    pdb_cnt_precheck=$(echo "${pre_check}" | cut -d'|' -f2)
+                    # Only skip if pre-check returned a valid db name AND it definitively doesn't match.
+                    # Guard against empty pre_check (sqlplus failure) — never skip on missing data.
+                    if [ -n "${db_name_precheck}" ] && [[ "${db_name_precheck}" != ${filter_db} ]] && [ "${pdb_cnt_precheck:-0}" -le 0 ] 2>/dev/null; then
+                        continue   # neither db_name nor any PDB matches the filter — skip
+                    fi
                 fi
-                db_name_precheck=$(echo "${pre_check}" | cut -d'|' -f1)
-                pdb_cnt_precheck=$(echo "${pre_check}" | cut -d'|' -f2)
-                if [[ "${db_name_precheck}" != ${filter_db} ]] && [ "${pdb_cnt_precheck:-0}" -le 0 ] 2>/dev/null; then
-                    continue   # neither db_name nor any PDB matches the filter — skip
-                fi
+                # If inst_line is empty or status is ambiguous, fall through to the main loop.
             fi
             # --- End fast pre-filter ---
 
@@ -453,7 +462,7 @@ else
 
                         # Print PDB row
                         pdb_name_up=$(echo "${pdb_name}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:lower:]' '[:upper:]')
-                        if [ -n "${filter_pdb_target}" ] && [[ "${pdb_name_up}" == ${filter_pdb_target} ]]; then
+                        if [ -n "${filter_db}" ] && [[ "${pdb_name_up}" == ${filter_db} ]]; then
                             printf "|%-$((col_width_db + 9))s" " └ $(printf "\033[32m%s\033[0m" "${pdb_name}")"
                         else
                             printf "|%-${col_width_db}s" " └ ${pdb_name}"
