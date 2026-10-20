@@ -9,7 +9,7 @@
 # License:      MIT License                                                           #
 # Copyright (C) - Ignacio Pastor Fernandez."                                          #
 #######################################################################################
-version="1.46"
+version="1.48"
 
 # Output table columns width variables (user-modifiable)
 col_width_db="30"          # Column width for DB
@@ -236,6 +236,46 @@ if [ "${show_crs}" = "true" ]; then
     hp_usage_pct_color=$(colorize_pct "$hp_usage_pct")
     cpu_usage_pct_color=$(colorize_pct "$cpu_usage_pct")
 
+    # ASM diskgroups usage (with redundancy), queried from the first running database instance on the local node
+    asm_db_home=""
+    asm_db_sid=""
+    asm_dg_rows=""
+    asm_total_tb=""
+    asm_dg_list=""
+    while IFS= read -r asm_db_config; do
+        asm_db=$(echo "${asm_db_config}" | awk '{print $1}')
+        asm_db_home=$(echo "${asm_db_config}" | awk '{print $2}')
+        [ -x "${asm_db_home}/bin/sqlplus" ] || continue
+        # Same check as the main loop: local node instance line from "srvctl status database -v" (stdin detached so srvctl cannot consume the loop input)
+        asm_db_sid=$(ORACLE_HOME="${asm_db_home}" ${asm_db_home}/bin/srvctl status database -d "${asm_db}" -v 2>/dev/null </dev/null | grep -w "${current_dbnode}" | grep " is running" | head -1 | awk '{print $2}')
+        [ -n "${asm_db_sid}" ] && break
+    done < <(${GRID_HOME}/bin/srvctl config database -v 2>/dev/null)
+
+    if [ -n "${asm_db_sid}" ]; then
+        # Output: NAME|TOTAL_MB with redundancy|USABLE_FILE_MB|STATE
+        asm_dg_rows=$(echo -e "set head off feed off pages 0 lines 400 trimout on;\nalter session set nls_numeric_characters='.,';\nselect dg.name||'|'||(dg.total_mb/decode(dg.type,'EXTERN',1,'NORMAL',2,'HIGH',3,1))||'|'||dg.usable_file_mb||'|'||dg.state from v\$asm_diskgroup_stat dg order by dg.name;" | ORACLE_HOME="${asm_db_home}" ORACLE_SID="${asm_db_sid}" ORACLE_PDB_SID="" ${asm_db_home}/bin/sqlplus -s / as sysdba 2>/dev/null | grep '|')
+    fi
+
+    if [ -n "${asm_dg_rows}" ]; then
+        # Per diskgroup: NAME|TB total (1 decimal)|GB available (rounded up, 1 decimal)|% used ; last line: #TOTAL|sum TB
+        while IFS='|' read -r dg_name dg_tb dg_gb dg_pct; do
+            if [ "${dg_name}" = "#TOTAL" ]; then
+                asm_total_tb="${dg_tb}"
+                continue
+            fi
+            [ -n "${asm_dg_list}" ] && asm_dg_list+=", "
+            asm_dg_list+="${dg_name} (${dg_tb}TB total, ${dg_gb}GB available, $(colorize_pct "${dg_pct}") used)"
+        done < <(echo "${asm_dg_rows}" | LC_NUMERIC=C awk -F'|' '
+            {
+                tot = $2 + 0; usa = $3 + 0
+                tb = tot / 1024 / 1024; sum += tb
+                gb10 = usa / 1024 * 10; gbc = int(gb10); if (gb10 - gbc > 1e-9) gbc++
+                pct = ($4 == "DISMOUNTED" || tot <= 0) ? "N/A" : sprintf("%.1f%%", 100 - usa / tot * 100)
+                printf "%s|%.1f|%.1f|%s\n", $1, tb, gbc / 10, pct
+            }
+            END { printf "#TOTAL|%.1f\n", sum }')
+    fi
+
     # Print CRS info
     printf "\n%${header_chars}s\n" | tr ' ' '='
     echo  "CRS info"
@@ -247,6 +287,13 @@ if [ "${show_crs}" = "true" ]; then
     printf "%-18s: %-23s %s\n" "CLUSTER_NODES"  "${string_dbnodes}"
     printf "%-18s: %-2s [MEM%5sGB (hugepages%5sGB)] [CPUs%4s (%s)]\n"      "HOST_RESOURCES" "$(hostname)" "$total_mem_gb" "$hp_total_gb" "$cpus" "$model"
     printf "%-18s: %-2s [MEM%% %5s (hugepages  %5s)] [CPU%% %5s]\n"         "HOST_USAGE"     "$(hostname)" "$total_mem_usage_pct_color" "$hp_usage_pct_color" "$cpu_usage_pct_color"
+    if [ -n "${asm_dg_list}" ]; then
+        printf "%-18s: %s\n" "ASM_DG_USAGE" "TOTAL ${asm_total_tb}TB [${asm_dg_list}]"
+    elif [ -z "${asm_db_sid}" ]; then
+        printf "%-18s: %s\n" "ASM_DG_USAGE" "N/A (no running database instance found on local node)"
+    else
+        printf "%-18s: %s\n" "ASM_DG_USAGE" "N/A (no ASM diskgroup data returned by ${asm_db_sid})"
+    fi
 fi
 
 # Print DB info
