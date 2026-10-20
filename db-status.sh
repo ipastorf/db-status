@@ -9,13 +9,12 @@
 # License:      MIT License                                                           #
 # Copyright (C) - Ignacio Pastor Fernandez."                                          #
 #######################################################################################
+version="1.48"
 
 # Re-launch with bash when invoked as "sh db-status.sh" (POSIX mode or non-bash shell does not support process substitution)
 if [ -z "${BASH_VERSION}" ] || shopt -qo posix 2>/dev/null; then
     exec /bin/bash "$0" "$@"
 fi
-
-version="1.48"
 
 # Output table columns width variables (user-modifiable)
 col_width_db="30"          # Column width for DB
